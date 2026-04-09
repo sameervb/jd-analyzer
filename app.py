@@ -8,11 +8,13 @@ from __future__ import annotations
 import io
 import json
 import time
+import base64
 import requests
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from pathlib import Path
 
 from services.resume_parser import parse_resume
 from services.jd_interpreter import interpret_jd
@@ -24,6 +26,30 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ── Asset loader ───────────────────────────────────────────────────────────────
+def _b64(filename: str) -> str:
+    p = Path(__file__).parent / "assets" / filename
+    if p.exists():
+        ext = p.suffix.lstrip(".")
+        mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp", "avif": "avif"}.get(ext, "jpeg")
+        return f"data:image/{mime};base64," + base64.b64encode(p.read_bytes()).decode()
+    return ""
+
+@st.cache_data(show_spinner=False)
+def load_assets():
+    return {
+        "career":  _b64("career.jpg"),
+        "career2": _b64("career_2.jpg"),
+        "career3": _b64("career_3.jpg"),
+        "hero":    _b64("hero.jpg"),
+    }
+
+IMG       = load_assets()
+career_bg  = f'url("{IMG["career"]}")'  if IMG["career"]  else "none"
+career2_bg = f'url("{IMG["career2"]}")' if IMG["career2"] else "none"
+career3_bg = f'url("{IMG["career3"]}")' if IMG["career3"] else "none"
+hero_bg    = f'url("{IMG["hero"]}")'    if IMG["hero"]    else "none"
 
 # ── CSS ────────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -223,6 +249,21 @@ textarea {
     background: #0d1520 !important; border-color: #1a2840 !important;
     color: #cbd5e1 !important;
 }
+
+/* ── Tab banner ── */
+.tab-banner {
+    border-radius: 20px; overflow: hidden; position: relative;
+    margin-bottom: 28px; height: 180px;
+    background-size: cover; background-position: center;
+    display: flex; align-items: flex-end;
+    background-color: #0f1825; border: 1px solid #1e2d42;
+}
+.tab-banner .banner-overlay {
+    position: absolute; inset: 0;
+}
+.tab-banner .banner-content {
+    position: relative; z-index: 1; padding: 28px 32px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -353,19 +394,17 @@ def sec(title: str, icon: str = ""):
         unsafe_allow_html=True,
     )
 
-def banner(title: str, subtitle: str, accent: str = "#1d6bf3", tag: str = "JD Fit Analyzer"):
+def banner(title: str, subtitle: str, accent: str = "#1d6bf3", tag: str = "JD Fit Analyzer", bg: str = "none"):
+    img_style = f"background-image:{bg};" if bg != "none" else ""
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#0f1825 0%,#131d2e 100%);
-                border:1px solid #1e2d42;border-radius:20px;
-                padding:24px 32px;margin-bottom:28px;
-                border-left:4px solid {accent};position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;right:0;width:50%;height:100%;
-                    background:linear-gradient(135deg,transparent,rgba(255,255,255,0.015))"></div>
-        <div style="position:relative">
+    <div class="tab-banner" style="{img_style}">
+        <div class="banner-overlay"
+             style="background:linear-gradient(to right,rgba(7,9,15,0.94) 0%,rgba(7,9,15,0.65) 55%,rgba(7,9,15,0.2) 100%)"></div>
+        <div class="banner-content">
             <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
                         letter-spacing:0.18em;color:{accent};margin-bottom:8px">{tag}</div>
             <div style="font-size:1.75rem;font-weight:800;color:#f1f5f9;line-height:1.1">{title}</div>
-            <div style="color:#64748b;margin-top:6px;font-size:0.84rem">{subtitle}</div>
+            <div style="color:#94a3b8;margin-top:6px;font-size:0.84rem;max-width:520px">{subtitle}</div>
         </div>
     </div>""", unsafe_allow_html=True)
 
@@ -392,13 +431,26 @@ def footer():
 # ── Sidebar ─────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("""
-    <div style="margin-bottom:20px">
-        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
-                    letter-spacing:0.2em;color:#1d6bf3;margin-bottom:6px">AI-Powered</div>
-        <div style="font-size:1.3rem;font-weight:800;color:#f1f5f9;line-height:1">JD Fit Analyzer</div>
-        <div style="color:#4b5a7a;font-size:0.78rem;margin-top:4px">No login · No data stored</div>
-    </div>""", unsafe_allow_html=True)
+    if IMG["career"]:
+        st.markdown(f"""
+        <div style="border-radius:16px;overflow:hidden;margin-bottom:16px;height:110px;
+                    background-image:{career_bg};background-size:cover;background-position:center top">
+            <div style="height:100%;background:linear-gradient(to bottom,rgba(7,9,15,0.35),rgba(7,9,15,0.88));
+                        display:flex;flex-direction:column;justify-content:flex-end;padding:14px">
+                <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                            letter-spacing:0.2em;color:#1d6bf3">AI-Powered</div>
+                <div style="font-size:1.1rem;font-weight:800;color:#f1f5f9;line-height:1.2">JD Fit Analyzer</div>
+                <div style="color:#4b5a7a;font-size:0.72rem;margin-top:2px">No login · No data stored</div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="margin-bottom:20px">
+            <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.2em;color:#1d6bf3;margin-bottom:6px">AI-Powered</div>
+            <div style="font-size:1.3rem;font-weight:800;color:#f1f5f9;line-height:1">JD Fit Analyzer</div>
+            <div style="color:#4b5a7a;font-size:0.78rem;margin-top:4px">No login · No data stored</div>
+        </div>""", unsafe_allow_html=True)
 
     st.markdown('<div style="height:1px;background:linear-gradient(90deg,#1e2d42,transparent);margin-bottom:16px"></div>', unsafe_allow_html=True)
 
@@ -485,7 +537,7 @@ tab_resume, tab_jd, tab_analysis, tab_cover, tab_about = st.tabs([
 with tab_resume:
     banner("Resume Intelligence",
            "Upload PDF, DOCX, or paste text · Skills extraction · Experience timeline · Completeness score",
-           accent="#1d6bf3")
+           accent="#1d6bf3", bg=career_bg)
 
     col_upload, col_paste = st.columns([1, 1], gap="large")
 
@@ -654,7 +706,7 @@ with tab_resume:
 with tab_jd:
     banner("Job Fit Analysis",
            "Paste any JD · Fit score (0–100) · Gap cards · ATS keyword audit · Skill match chart",
-           accent="#8b5cf6")
+           accent="#8b5cf6", bg=career2_bg)
 
     if not st.session_state.get("parsed_resume"):
         st.info("Parse your resume in the **Resume** tab first to unlock fit analysis.")
@@ -836,7 +888,7 @@ with tab_jd:
 with tab_analysis:
     banner("AI Career Strategist",
            "Strengths · critical gaps · red flags · salary range · 5 tailoring actions",
-           accent="#22c55e")
+           accent="#22c55e", bg=career3_bg)
 
     if not st.session_state.get("fit_result"):
         st.markdown("""
@@ -921,7 +973,7 @@ Specific changes the candidate should make to their resume or cover letter to im
 with tab_cover:
     banner("Cover Letter Generator",
            "Tone & length controls · AI-written · draws on real achievements · ready to copy",
-           accent="#f59e0b")
+           accent="#f59e0b", bg=hero_bg)
 
     if not st.session_state.get("fit_result"):
         st.markdown("""
@@ -1019,10 +1071,10 @@ Format: Plain paragraphs ready to copy. No headers. No placeholders like [Compan
 with tab_about:
     st.markdown("""
     <div style="border-radius:24px;overflow:hidden;position:relative;height:260px;
-                background:linear-gradient(135deg,#0f1825 0%,#131d2e 60%,#0a0f1e 100%);
+                background-image:{career_bg};background-size:cover;background-position:center;
                 border:1px solid #1e2d42;margin-bottom:32px">
         <div style="position:absolute;inset:0;
-                    background:radial-gradient(ellipse at 70% 50%,rgba(29,107,243,0.12) 0%,transparent 70%)"></div>
+                    background:linear-gradient(135deg,rgba(7,9,15,0.92) 0%,rgba(7,9,15,0.6) 100%)"></div>
         <div style="position:relative;z-index:1;padding:48px;height:100%;
                     display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
             <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;

@@ -46,10 +46,10 @@ def load_assets():
     }
 
 IMG       = load_assets()
-career_bg  = f'url("{IMG["career"]}")'  if IMG["career"]  else "none"
-career2_bg = f'url("{IMG["career2"]}")' if IMG["career2"] else "none"
-career3_bg = f'url("{IMG["career3"]}")' if IMG["career3"] else "none"
-hero_bg    = f'url("{IMG["hero"]}")'    if IMG["hero"]    else "none"
+career_bg  = f"url('{IMG['career']}')"  if IMG["career"]  else "none"
+career2_bg = f"url('{IMG['career2']}')" if IMG["career2"] else "none"
+career3_bg = f"url('{IMG['career3']}')" if IMG["career3"] else "none"
+hero_bg    = f"url('{IMG['hero']}')"    if IMG["hero"]    else "none"
 
 # ── CSS ────────────────────────────────────────────────────────────────────────
 st.markdown("""

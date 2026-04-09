@@ -473,8 +473,8 @@ with st.sidebar:
 
 # ── Tabs ────────────────────────────────────────────────────────────────────────
 
-tab_resume, tab_jd, tab_analysis, tab_cover = st.tabs([
-    "📄 Resume", "📋 JD Fit", "🤖 AI Analysis", "✍️ Cover Letter"
+tab_resume, tab_jd, tab_analysis, tab_cover, tab_about = st.tabs([
+    "📄 Resume", "📋 JD Fit", "🤖 AI Analysis", "✍️ Cover Letter", "ℹ️ About"
 ])
 
 
@@ -1009,5 +1009,96 @@ Format: Plain paragraphs ready to copy. No headers. No placeholders like [Compan
             if result and not result.startswith("⚠️"):
                 st.session_state["cover_letter"] = result
                 st.rerun()
+
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 5 — About
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_about:
+    st.markdown("""
+    <div style="border-radius:24px;overflow:hidden;position:relative;height:260px;
+                background:linear-gradient(135deg,#0f1825 0%,#131d2e 60%,#0a0f1e 100%);
+                border:1px solid #1e2d42;margin-bottom:32px">
+        <div style="position:absolute;inset:0;
+                    background:radial-gradient(ellipse at 70% 50%,rgba(29,107,243,0.12) 0%,transparent 70%)"></div>
+        <div style="position:relative;z-index:1;padding:48px;height:100%;
+                    display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+            <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.2em;color:#1d6bf3;margin-bottom:12px">Portfolio Project</div>
+            <div style="font-size:2.5rem;font-weight:900;color:#f1f5f9;line-height:1">JD Fit Analyzer</div>
+            <div style="color:#64748b;margin-top:12px;max-width:520px;line-height:1.7;font-size:0.88rem">
+                AI-powered resume × job description fit scorer. Upload your CV, paste a JD,
+                and get a detailed gap analysis, skill match, ATS audit, and a tailored cover letter —
+                all running locally with no data stored.
+            </div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    ca, cb = st.columns(2)
+    with ca:
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#0f1825,#111d2e);border:1px solid #1e2d42;
+                    border-radius:20px;padding:24px;margin-bottom:16px">
+            <div style="font-weight:800;color:#f1f5f9;font-size:1rem;margin-bottom:16px">🎯 Features</div>
+            <div style="color:#64748b;line-height:2.2;font-size:0.88rem">
+                📄 <strong style="color:#94a3b8">Resume Parser</strong> — PDF/DOCX extraction, skills, experience<br>
+                📋 <strong style="color:#94a3b8">JD Fit Score</strong> — Weighted match with ATS audit<br>
+                🤖 <strong style="color:#94a3b8">AI Analysis</strong> — Career strategy, gap bridging, positioning<br>
+                ✍️ <strong style="color:#94a3b8">Cover Letter</strong> — Tailored draft, tone + length control<br>
+                💬 <strong style="color:#94a3b8">Follow-up Chat</strong> — Multi-turn Q&A on your fit
+            </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#0f1825,#111d2e);border:1px solid #1e2d42;
+                    border-radius:20px;padding:24px">
+            <div style="font-weight:800;color:#f1f5f9;font-size:1rem;margin-bottom:16px">🔒 Privacy</div>
+            <div style="color:#64748b;line-height:1.8;font-size:0.88rem">
+                No resume data is stored server-side. All parsing runs in-memory per session.
+                AI analysis runs on a local Ollama instance via a private Cloudflare tunnel —
+                nothing is sent to OpenAI or any commercial AI provider.
+                Your data disappears when you close the tab.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with cb:
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#0f1825,#111d2e);border:1px solid #1e2d42;
+                    border-radius:20px;padding:24px;margin-bottom:16px">
+            <div style="font-weight:800;color:#f1f5f9;font-size:1rem;margin-bottom:16px">👨‍💻 Built by</div>
+            <div style="font-size:1.1rem;font-weight:700;color:#e2e8f0">Sameer Bhalerao</div>
+            <div style="color:#4b5a7a;font-size:0.85rem;margin-top:2px">Senior Analytics & AI Product Leader · Amazon L6</div>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+                <a href="https://www.linkedin.com/in/sameervb" target="_blank"
+                   style="background:#0d1e30;border:1px solid #1a3050;border-radius:8px;padding:6px 14px;
+                          color:#60a5fa;font-size:0.8rem;text-decoration:none">LinkedIn</a>
+                <a href="https://github.com/sameervb" target="_blank"
+                   style="background:#0d1e30;border:1px solid #1a3050;border-radius:8px;padding:6px 14px;
+                          color:#94a3b8;font-size:0.8rem;text-decoration:none">GitHub</a>
+                <a href="https://soulspark.me" target="_blank"
+                   style="background:#0d1420;border:1px solid #1a2d42;border-radius:8px;padding:6px 14px;
+                          color:#1d6bf3;font-size:0.8rem;text-decoration:none">Soul Spark</a>
+            </div>
+            <div style="color:#334155;font-size:0.82rem;line-height:1.7;margin-top:16px">
+                This is one of 10 standalone public apps extracted from
+                <a href="https://soulspark.me" style="color:#1d6bf3">Soul Spark</a> — a local-first
+                personal intelligence platform built end-to-end in 8 weeks.
+            </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#0f1825,#111d2e);border:1px solid #1e2d42;
+                    border-radius:20px;padding:24px">
+            <div style="font-weight:800;color:#f1f5f9;font-size:1rem;margin-bottom:16px">🛠️ Tech Stack</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+        """, unsafe_allow_html=True)
+        for badge in ["Python 3.14", "Streamlit", "pdfplumber", "python-docx",
+                      "Plotly", "Pandas", "Ollama (LLaMA 3.1)", "Cloudflare Tunnel",
+                      "Streamlit Community Cloud"]:
+            st.markdown(
+                f'<span style="background:#0a1420;border:1px solid #1e3050;border-radius:20px;'
+                f'padding:5px 12px;color:#94a3b8;font-size:0.75rem">{badge}</span>',
+                unsafe_allow_html=True,
+            )
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
     footer()

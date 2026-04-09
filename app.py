@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import json
+import time
 import requests
 import streamlit as st
 import pandas as pd
@@ -129,26 +130,105 @@ def cached_interpret_jd(text: str) -> dict:
     return interpret_jd(text)
 
 
-def query_ollama(prompt: str, system: str = "") -> str:
-    """Send a prompt to Ollama. Returns response string or error message."""
-    base_url = st.secrets.get("OLLAMA_BASE_URL", "http://localhost:11434")
-    model = st.secrets.get("OLLAMA_MODEL", "llama3")
+def _get_ollama_url() -> str:
+    try: return st.secrets.get("OLLAMA_BASE_URL", "") or ""
+    except: return ""
+
+def _get_ollama_model() -> str:
+    override = st.session_state.get("jd_selected_model")
+    if override: return override
+    try: return st.secrets.get("OLLAMA_MODEL", "llama3.1")
+    except: return "llama3.1"
+
+@st.cache_data(ttl=30, show_spinner=False)
+def detect_ollama_models() -> list:
+    base_url = _get_ollama_url()
+    if not base_url: return []
     try:
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-        resp = requests.post(
-            f"{base_url.rstrip('/')}/api/chat",
-            json={"model": model, "messages": messages, "stream": False},
-            timeout=90,
-        )
+        r = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=5)
+        if r.ok:
+            return sorted(m["name"] for m in r.json().get("models", []))
+    except Exception:
+        pass
+    return []
+
+@st.cache_data(ttl=15, show_spinner=False)
+def detect_gpu() -> bool | None:
+    base_url = _get_ollama_url()
+    if not base_url: return None
+    try:
+        r = requests.get(f"{base_url.rstrip('/')}/api/ps", timeout=5)
+        if r.ok:
+            models = r.json().get("models", [])
+            if not models: return None
+            return any(m.get("size_vram", 0) > 0 for m in models)
+    except Exception:
+        pass
+    return None
+
+def _stream_ollama(prompt: str, system: str = "", max_tokens: int = 1200, temperature: float = 0.72):
+    base_url = _get_ollama_url()
+    if not base_url:
+        yield "⚠️ OLLAMA_BASE_URL not configured in Streamlit secrets."
+        return
+    try:
+        msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        r = requests.post(f"{base_url.rstrip('/')}/api/chat",
+            json={"model": _get_ollama_model(), "messages": msgs, "stream": True,
+                  "options": {"num_predict": max_tokens, "temperature": temperature}},
+            timeout=120, stream=True)
+        if r.ok:
+            for line in r.iter_lines():
+                if line:
+                    try:
+                        chunk = json.loads(line)
+                        token = chunk.get("message", {}).get("content", "")
+                        if token: yield token
+                        if chunk.get("done"): break
+                    except Exception:
+                        pass
+        else:
+            yield f"⚠️ Ollama HTTP {r.status_code}"
+    except requests.Timeout:
+        yield "⚠️ **Timeout** — Ollama is still processing. Try a faster model (mistral or phi3:mini)."
+    except requests.ConnectionError:
+        yield "⚠️ **Cannot reach Ollama.** Check tunnel URL in secrets and restart Cloudflare tunnel."
+    except Exception as e:
+        yield f"⚠️ {e}"
+
+def render_ai_output(prompt: str, system: str = "", max_tokens: int = 1200, temperature: float = 0.72) -> str:
+    """Stream Ollama response with elapsed timer. Returns full text."""
+    start_t = time.perf_counter()
+    status = st.status("⚡ Generating analysis...", expanded=True)
+    full_text = ""
+    with status:
+        full_text = st.write_stream(_stream_ollama(prompt, system, max_tokens, temperature))
+        elapsed = time.perf_counter() - start_t
+        st.caption(f"Generated in {elapsed:.1f}s · Model: {_get_ollama_model()}")
+    status.update(label=f"✅ Done · {elapsed:.1f}s", state="complete", expanded=False)
+    return full_text or ""
+
+# Non-streaming fallback (kept for compatibility)
+def query_ollama(prompt: str, system: str = "", max_tokens: int = 1200) -> str:
+    base_url = _get_ollama_url()
+    if not base_url:
+        return "⚠️ OLLAMA_BASE_URL not configured."
+    try:
+        msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        resp = requests.post(f"{base_url.rstrip('/')}/api/chat",
+            json={"model": _get_ollama_model(), "messages": msgs, "stream": False,
+                  "options": {"num_predict": max_tokens, "temperature": 0.72}},
+            timeout=120)
         resp.raise_for_status()
         return resp.json().get("message", {}).get("content", "No response received.")
-    except requests.exceptions.ConnectionError:
-        return "⚠️ Cannot reach Ollama. Make sure it's running and the tunnel URL is set correctly in secrets."
+    except requests.Timeout:
+        return "⚠️ Timeout — try a faster model."
+    except requests.ConnectionError:
+        return "⚠️ Cannot reach Ollama. Check tunnel URL."
     except Exception as e:
-        return f"⚠️ Ollama error: {e}"
+        return f"⚠️ {e}"
+
+_ai_available = bool(_get_ollama_url())
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -183,8 +263,25 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
+    if _ai_available:
+        available_models = detect_ollama_models()
+        if available_models:
+            gpu_status = detect_gpu()
+            gpu_label = "🟩 GPU" if gpu_status is True else "🟨 CPU" if gpu_status is False else ""
+            st.markdown(f'<div style="background:#0d2518;border:1px solid #1f6feb33;border-radius:8px;padding:8px 12px;color:#7ee787;font-size:0.8rem;margin-bottom:8px">🟢 AI online {gpu_label}</div>', unsafe_allow_html=True)
+            current = _get_ollama_model()
+            default_idx = available_models.index(current) if current in available_models else 0
+            chosen = st.selectbox("Model", available_models, index=default_idx,
+                                  label_visibility="collapsed",
+                                  help="Faster: phi3:mini > mistral > llama3.1")
+            if chosen != st.session_state.get("jd_selected_model"):
+                st.session_state["jd_selected_model"] = chosen
+        else:
+            st.markdown('<div style="background:#0d2518;border:1px solid #238636;border-radius:8px;padding:8px 12px;color:#7ee787;font-size:0.8rem">🟢 AI online</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;color:#8b949e;font-size:0.8rem">🔵 Set OLLAMA_BASE_URL in secrets to enable AI</div>', unsafe_allow_html=True)
+    st.markdown("")
     st.caption("No data is stored. Everything runs in your browser session.")
-    st.caption("AI analysis requires Ollama running locally or via Cloudflare Tunnel.")
 
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
@@ -582,10 +679,10 @@ Based on the seniority level and any compensation signal in the JD, suggest a re
 ## 5 Tailoring Actions
 Specific changes the candidate should make to their resume or cover letter to improve fit for THIS role.
 """
-                with st.spinner("Generating AI analysis..."):
-                    result = query_ollama(user_prompt, system=system_prompt)
-                st.session_state["ai_analysis"] = result
-                st.rerun()
+                result = render_ai_output(user_prompt, system=system_prompt, max_tokens=1400, temperature=0.72)
+                if result and not result.startswith("⚠️"):
+                    st.session_state["ai_analysis"] = result
+                    st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -655,7 +752,7 @@ Requirements:
 
 Format: Plain paragraphs ready to copy. No headers. No placeholders like [Company Name] — infer from the JD if possible or use "your team".
 """
-            with st.spinner("Writing cover letter..."):
-                result = query_ollama(user_prompt, system=system_prompt)
-            st.session_state["cover_letter"] = result
-            st.rerun()
+            result = render_ai_output(user_prompt, system=system_prompt, max_tokens=600, temperature=0.75)
+            if result and not result.startswith("⚠️"):
+                st.session_state["cover_letter"] = result
+                st.rerun()

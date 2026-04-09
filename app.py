@@ -11,6 +11,7 @@ import time
 import base64
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
@@ -51,13 +52,61 @@ career2_bg = f"url('{IMG['career2']}')" if IMG["career2"] else "none"
 career3_bg = f"url('{IMG['career3']}')" if IMG["career3"] else "none"
 hero_bg    = f"url('{IMG['hero']}')"    if IMG["hero"]    else "none"
 
+def inject_tab_bg_switcher(tab_imgs: list):
+    """Inject JS that swaps full-screen app background per active tab.
+    tab_imgs: list of raw data-URI strings (one per tab, in order).
+    Uses a stacked gradient overlay to keep text readable.
+    """
+    imgs_js = json.dumps(tab_imgs)
+    components.html(f"""
+    <script>
+    (function() {{
+      var IMGS = {imgs_js};
+      var OVERLAY = 'linear-gradient(rgba(7,9,15,0.72), rgba(7,9,15,0.72))';
+      function applyBg(idx) {{
+        var app = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+        if (!app) return;
+        var img = IMGS[idx] || '';
+        if (img) {{
+          app.style.backgroundImage = OVERLAY + ", url('" + img + "')";
+          app.style.backgroundSize = 'cover';
+          app.style.backgroundPosition = 'center top';
+          app.style.backgroundAttachment = 'fixed';
+          app.style.backgroundRepeat = 'no-repeat';
+        }}
+      }}
+      function setupObserver() {{
+        var tabList = window.parent.document.querySelector('[data-baseweb="tab-list"]');
+        if (!tabList) {{ setTimeout(setupObserver, 250); return; }}
+        function syncActive() {{
+          var tabs = tabList.querySelectorAll('[data-baseweb="tab"]');
+          for (var i = 0; i < tabs.length; i++) {{
+            if (tabs[i].getAttribute('aria-selected') === 'true') {{ applyBg(i); break; }}
+          }}
+        }}
+        syncActive();
+        new MutationObserver(syncActive).observe(tabList, {{
+          attributes: true, subtree: true, attributeFilter: ['aria-selected']
+        }});
+      }}
+      setupObserver();
+    }})();
+    </script>
+    """, height=0, scrolling=False)
+
 # ── CSS ────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 *, *::before, *::after { font-family: 'Inter', sans-serif; box-sizing: border-box; }
 
-[data-testid="stAppViewContainer"] { background: #07090f; }
+[data-testid="stAppViewContainer"] {
+    background: #07090f;
+    background-size: cover !important;
+    background-position: center top !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+}
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #0a0e1a 0%, #07090f 100%);
     border-right: 1px solid #1a2236;
@@ -541,6 +590,11 @@ with st.sidebar:
 
 tab_resume, tab_jd, tab_analysis, tab_cover, tab_about = st.tabs([
     "📄 Resume", "📋 JD Fit", "🤖 AI Analysis", "✍️ Cover Letter", "ℹ️ About"
+])
+
+# Tab 0→career, 1→career2, 2→career3, 3→hero, 4→career
+inject_tab_bg_switcher([
+    IMG["career"], IMG["career2"], IMG["career3"], IMG["hero"], IMG["career"]
 ])
 
 

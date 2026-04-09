@@ -502,6 +502,18 @@ with st.sidebar:
 
     st.markdown('<div style="height:1px;background:linear-gradient(90deg,#1e2d42,transparent);margin:12px 0"></div>', unsafe_allow_html=True)
 
+    _MODEL_DESC = {
+        "phi3:mini":    "⚡ fastest · ~5s",
+        "phi3:medium":  "⚡ fast · ~10s",
+        "mistral":      "⚖️ balanced · ~15s",
+        "mistral:7b":   "⚖️ balanced · ~15s",
+        "llama3.1:8b":  "🧠 capable · ~30s",
+        "llama3.1:70b": "🧠 most capable · slow",
+        "llama3:8b":    "🧠 capable · ~30s",
+        "gemma:7b":     "⚖️ balanced · ~20s",
+        "gemma2:9b":    "⚖️ balanced · ~20s",
+        "qwen2.5:7b":   "⚖️ balanced · ~20s",
+    }
     if _ai_available:
         available_models = detect_ollama_models()
         if available_models:
@@ -510,9 +522,11 @@ with st.sidebar:
             st.markdown(f'<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:8px 12px;color:#86efac;font-size:0.78rem;margin-bottom:8px">🟢 &nbsp;AI online &nbsp;{gpu_label}</div>', unsafe_allow_html=True)
             current = _get_ollama_model()
             default_idx = available_models.index(current) if current in available_models else 0
-            chosen = st.selectbox("Model", available_models, index=default_idx,
-                                  label_visibility="collapsed",
-                                  help="Faster: phi3:mini > mistral > llama3.1")
+            chosen = st.selectbox(
+                "Model", available_models, index=default_idx,
+                label_visibility="collapsed",
+                format_func=lambda m: f"{m} — {_MODEL_DESC[m]}" if m in _MODEL_DESC else m,
+            )
             if chosen != st.session_state.get("jd_selected_model"):
                 st.session_state["jd_selected_model"] = chosen
         else:
